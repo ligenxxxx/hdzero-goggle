@@ -1725,7 +1725,7 @@ int DM6302_init(uint8_t freq, uint8_t bw) {
                 WAIT(1);
                 SPI_Read(0x6, 0xFF0, &r0, &r1);
                 if (r0 != i || r1 != i) {
-                    LOGI("spi Error: %x SPI READ: addr=%x  data=  %x  %x", i, addr, r0, r1);
+                    LOGI("spi Error: %x SPI READ:  data=  %x  %x", i, r0, r1);
                 }
             }
         }
