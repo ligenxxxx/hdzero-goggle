@@ -14,7 +14,7 @@
 #include "i2c.h"
 #include "uart.h"
 
-#define WAIT(ms) usleep((ms)*1000)
+#define WAIT(ms) usleep((ms) * 1000)
 
 // DM6302: RF receiver
 /*  �����ź�:
@@ -1708,6 +1708,7 @@ void DM6302_DCOC(uint8_t SEL6302) {
 int DM6302_init(uint8_t freq, uint8_t bw) {
     int to_cnt = 0;
     uint32_t r0 = 1, r1 = 1;
+    uint32_t i;
 
     while (r0) {
         DM5680_ResetRF(0);
@@ -1717,6 +1718,17 @@ int DM6302_init(uint8_t freq, uint8_t bw) {
 
         DM6302_Init0(0);
         LOGI("Init0 done");
+
+        while (1) {
+            for (i = 0; i < 256; i++) {
+                SPI_Write(sel, 0x6, 0xFF0, i);
+                WAIT(1);
+                SPI_Read(0x6, 0xFF0, &r0, &r1);
+                if (r0 != i || r1 != i) {
+                    LOGI("spi Error: %x SPI READ: addr=%x  data=  %x  %x", i, addr, r0, r1);
+                }
+            }
+        }
 
         SPI_Read(0x6, 0xFF0, &r0, &r1);
         if ((r0 != 0x18) || (r1 != 0x18))
