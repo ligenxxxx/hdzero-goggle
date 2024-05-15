@@ -91,7 +91,7 @@ void uart_parse(uint8_t sel, uint8_t *state, uint8_t *len, uint8_t *payload, uin
     pkt_cnt = uart_parse_core(uart_buf, uart_buf_rptr, uart_buf_wptr, state, len, payload, payload_ptr);
     ptr = payload;
     while (pkt_cnt--) {
-        // LOGI("UART%d:Cmd=%x,len=%x,Value=%x",sel+1,ptr[1],ptr[0],ptr[2]);
+        LOGI("UART%d:Cmd=%x,len=%x,Value=%x", sel + 1, ptr[1], ptr[0], ptr[2]);
         switch (ptr[1]) {
         case 0x01: // Ver
             DM5680_get_ver(sel, ptr);
