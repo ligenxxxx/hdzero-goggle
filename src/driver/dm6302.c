@@ -1721,7 +1721,7 @@ int DM6302_init(uint8_t freq, uint8_t bw) {
 
         while (1) {
             for (i = 0; i < 256; i++) {
-                SPI_Write(sel, 0x6, 0xFF0, i);
+                SPI_Write(0, 0x6, 0xFF0, i);
                 WAIT(1);
                 SPI_Read(0x6, 0xFF0, &r0, &r1);
                 if (r0 != i || r1 != i) {
