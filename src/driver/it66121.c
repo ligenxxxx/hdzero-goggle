@@ -17,6 +17,7 @@ void IT66121_init() {
     DM5680_ResetHDMI_TX(1);
     usleep(10000);
 
+    return;
     I2C_R_Write(ADDR_IT66121, 0x0f, 0x08);
     I2C_R_Write(ADDR_IT66121, 0x05, 0x60);
     I2C_R_Write(ADDR_IT66121, 0x61, 0x30);
