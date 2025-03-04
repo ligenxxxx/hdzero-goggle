@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "dm5680.h"
 #include "osd.h"
 #include "util/time.h"
 
