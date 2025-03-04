@@ -180,7 +180,7 @@ void recive_one_frame(uint8_t *uart_buf, uint8_t uart_buf_len) {
             break;
 
         } // switch(rx_state)
-    }     // while(RS_ready1())
+    } // while(RS_ready1())
 }
 
 void parser_rx(uint8_t function, uint8_t index, uint8_t *rx_buf) {
@@ -326,6 +326,15 @@ void vtxCamRatioDetect(uint8_t rData) {
         cam_4_3 = 0;
 }
 
+void cameraIdDetect(uint8_t rdat) {
+    static uint8_t last_id = 0xff;
+    if (last_id = rdat) {
+        last_id = rdat;
+        DM5680_SetBB(0);
+        DM5680_SetBB(1);
+    }
+}
+
 void parser_config(uint8_t *rx_buf) {
     camTypeDetect(rx_buf[1]);
     fcTypeDetect(rx_buf + 2);
@@ -336,6 +345,7 @@ void parser_config(uint8_t *rx_buf) {
     vtxTypeDetect(rx_buf[10]);
     vtxFcLockDetect(rx_buf[11]);
     vtxCamRatioDetect(rx_buf[12]);
+    cameraIdDetect(rx_buf[13]);
 }
 
 /*
