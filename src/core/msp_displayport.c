@@ -329,7 +329,7 @@ void vtxCamRatioDetect(uint8_t rData) {
 
 void cameraIdDetect(uint8_t rdat) {
     static uint8_t last_id = 0xff;
-    if (last_id = rdat) {
+    if (last_id != rdat) {
         last_id = rdat;
         DM5680_SetBB(0);
         DM5680_SetBB(1);
