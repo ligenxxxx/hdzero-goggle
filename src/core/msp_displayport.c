@@ -333,6 +333,7 @@ void cameraIdDetect(uint8_t rdat) {
         last_id = rdat;
         DM5680_SetBB(0);
         DM5680_SetBB(1);
+        LOGI("rdat:%d, %d", last_id, rdat);
     }
 }
 
