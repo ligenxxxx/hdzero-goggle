@@ -210,6 +210,7 @@ void esp32_handler_timeout() {
 
 void msp_process_packet() {
     if (packet.type == MSP_PACKET_COMMAND) {
+        LOGI("elrs:command%d", packet.function);
         switch (packet.function) {
         case MSP_GET_BAND_CHAN: {
             uint8_t chan, ch, band;
@@ -337,6 +338,7 @@ void msp_process_packet() {
             break;
         }
     } else if (packet.type == MSP_PACKET_RESPONSE) {
+        LOGI("elrs packet_response");
         memcpy(&response_packet, &packet, sizeof(response_packet));
         sem_post(&response_semaphore);
     }
