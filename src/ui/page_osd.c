@@ -118,11 +118,11 @@ static void open_element_pos_preview() {
         break;
 
     case SOURCE_AV_IN:
-        app_switch_to_analog(0);
+        app_switch_to_av_in();
         break;
 
-    case SOURCE_EXPANSION:
-        app_switch_to_analog(1);
+    case SOURCE_ANALOG:
+        app_switch_to_analog();
         break;
     }
 

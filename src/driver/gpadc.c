@@ -36,10 +36,12 @@ void gpadc_on(uint8_t is_on) {
 int gpdac0_get() {
     char buf[128];
 
-    sprintf(buf, "awr 0x05070080 > %s", ADC0_FILE);
-#ifndef EMULATOR_BUILD
-    system(buf);
+#ifdef EMULATOR_BUILD
+    return -1;
 #endif
+
+    sprintf(buf, "awr 0x05070080 > %s", ADC0_FILE);
+    system(buf);
     usleep(10 * 1000); // 10ms
 
     FILE *file;

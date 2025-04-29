@@ -42,12 +42,14 @@ void self_test() {
     LOGI("%sUART2 communicate right DM5680 ver=%x", msg[rx_status[1].rx_ver != 0], rx_status[1].rx_ver);
 
     // 3. IT66121 (Right) HDMI_TX
-    DM5680_ResetHDMI_TX(0);
-    DM5680_ResetHDMI_TX(1);
-    usleep(UART_WAIT);
-    i = I2C_R_Read(ADDR_IT66121, 0x00); // Vender ID
-    LOGI("%sIT66121(R, HDMI_TX) Vender ID = 0x%x ", msg[(i == 0x54)], i);
-    DM5680_ResetHDMI_TX(0);
+    if(GOGGLE_VER_1V1 == 0) {
+        DM5680_ResetHDMI_TX(0);
+        DM5680_ResetHDMI_TX(1);
+        usleep(UART_WAIT);
+        i = I2C_R_Read(ADDR_IT66121, 0x00); // Vender ID
+        LOGI("%sIT66121(R, HDMI_TX) Vender ID = 0x%x ", msg[(i == 0x54)], i);
+        DM5680_ResetHDMI_TX(0);
+    }
 
     // 4. IT66021 (Left)
     DM5680_ResetHDMI_RX(0);
@@ -58,13 +60,21 @@ void self_test() {
     DM5680_ResetHDMI_RX(0);
 
     // 5. AL FPGA
-    i = I2C_Read(ADDR_AL, 0xFF);
-    LOGI("%sAL ver = 0x%x ", msg[1], i);
+    if(GOGGLE_VER_1V1 == 0) {
+        i = I2C_Read(ADDR_AL, 0xFF);
+        LOGI("%sAL ver = 0x%x ", msg[1], i);
+    }
 
     // 6. TP2825
     TP2825_open();
-    i = I2C_Read(ADDR_TP2825, 0x00);
-    LOGI("%sTP2825 ver = 0x%x ", msg[i == 0x11], i);
+    if(GOGGLE_VER_1V1 == 0) {
+        i = I2C_Read(ADDR_TP2825, 0x00);
+        LOGI("%sTP2825 ver = 0x%x ", msg[i == 0x11], i);
+    }
+    else {
+        i = I2C_Read(ADDR_TP2825, 0x0B);
+        LOGI("%sTW9900 ver = 0x%x ", msg[i == 0xD0], i);
+    }
     TP2825_close();
 
     // 7. DM6302s
@@ -80,6 +90,12 @@ void self_test() {
     // 8. HAN Status
     i = Get_HAN_status() & 1;
     LOGI("%sHAN Status. ", msg[i]);
+
+    // 9. DDR calib_done
+    if (GOGGLE_VER_1V1) {
+        i = I2C_Read(ADDR_FPGA, 0x1B);
+        LOGI("%sDDR calib_done = %d ", msg[i == 1], i);
+    }
 
     LOGI("==== Log  ======================");
 }

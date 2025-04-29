@@ -34,6 +34,7 @@ SDL_mutex *global_sdl_mutex;
 #include "driver/dm5680.h"
 #include "driver/esp32.h"
 #include "driver/fans.h"
+#include "driver/gpadc.h"
 #include "driver/gpio.h"
 #include "driver/hardware.h"
 #include "driver/i2c.h"
@@ -42,6 +43,7 @@ SDL_mutex *global_sdl_mutex;
 #include "driver/mcp3021.h"
 #include "driver/oled.h"
 #include "driver/rtc.h"
+#include "driver/rtc6715.h"
 #include "ui/page_power.h"
 #include "ui/page_scannow.h"
 #include "ui/page_source.h"
@@ -98,13 +100,13 @@ void start_running(void) {
         }
     } else {
         app_state_push(APP_STATE_VIDEO);
-        if (source == SETTING_AUTOSCAN_SOURCE_EXPANSION) { // module Bay
+        if (source == SETTING_AUTOSCAN_SOURCE_ANALOG) { // analog
             g_hw_stat.av_pal[1] = g_setting.source.analog_format;
-            app_switch_to_analog(1);
-            g_source_info.source = SOURCE_EXPANSION;
+            app_switch_to_analog();
+            g_source_info.source = SOURCE_ANALOG;
         } else if (source == SETTING_AUTOSCAN_SOURCE_AV_IN) { // AV in
             g_hw_stat.av_pal[0] = g_setting.source.analog_format;
-            app_switch_to_analog(0);
+            app_switch_to_av_in();
             g_source_info.source = SOURCE_AV_IN;
         } else { // HDMI in
             sleep(2);
@@ -176,6 +178,7 @@ int main(int argc, char *argv[]) {
     elrs_init();
     ht_init();
     beep_init();
+    gpadc_init();
 
     // 4. Initilize UI
     lvgl_init();
@@ -198,15 +201,15 @@ int main(int argc, char *argv[]) {
         ht_disable();
     }
 
-    // 7. Start threads
+    // 7 set initial analog module power state
+    Analog_Module_Power(1, 0); // must before start_running()
+
+    // 8. Start threads
     start_running();
     create_threads();
 
-    // 8. Synthetic counter for gif refresh
+    // 9. Synthetic counter for gif refresh
     gif_cnt = 0;
-
-    // 8.1 set initial analog module power state
-    Analog_Module_Power(0);
 
     // Head alarm
     head_alarm_init();

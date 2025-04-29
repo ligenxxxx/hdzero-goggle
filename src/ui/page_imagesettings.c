@@ -126,12 +126,12 @@ static void page_imagesettings_enter() {
         break;
 
     case SOURCE_AV_IN:
-        app_switch_to_analog(0);
+        app_switch_to_av_in();
         g_bShowIMS = true;
         break;
 
-    case SOURCE_EXPANSION:
-        app_switch_to_analog(1);
+    case SOURCE_ANALOG:
+        app_switch_to_analog();
         g_bShowIMS = true;
         break;
     }

@@ -34,6 +34,7 @@
 #include "driver/i2c.h"
 #include "driver/it66121.h"
 #include "driver/oled.h"
+#include "driver/rtc6715.h"
 #include "driver/uart.h"
 #include "ui/page_common.h"
 #include "ui/page_fans.h"
@@ -73,7 +74,14 @@ void tune_channel(uint8_t action) {
     if (g_setting.ease.no_dial)
         return;
 
-    if (g_source_info.source != SOURCE_HDZERO)
+    if (g_source_info.source == SOURCE_HDZERO)
+        ;
+    else if (GOGGLE_VER_1V1) {
+        if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL)
+            ;
+        else
+            return;
+    } else
         return;
 
     LOGI("tune_channel:%d", action);
@@ -87,16 +95,32 @@ void tune_channel(uint8_t action) {
         if ((action == DIAL_KEY_UP) || (action == DIAL_KEY_DOWN)) {
             tune_timer = TUNER_TIMER_LEN;
             tune_state = 2;
-            channel = g_setting.scan.channel;
+            if (g_source_info.source == SOURCE_HDZERO)
+                channel = g_setting.scan.channel;
+            else if (GOGGLE_VER_1V1) {
+                if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL)
+                    channel = g_setting.source.analog_channel;
+            } else
+                return;
         }
     }
 
     if (tune_state != 2)
         return;
 
+    uint8_t channel_num;
+    if (g_source_info.source == SOURCE_HDZERO)
+        channel_num = HDZERO_CHANNEL_NUM;
+    else if (GOGGLE_VER_1V1) {
+        if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+            channel_num = ANALOG_CHANNEL_NUM;
+        }
+    } else
+        return;
+
     switch (action) {
     case DIAL_KEY_UP: // Tune up
-        if (channel == CHANNEL_NUM)
+        if (channel == channel_num)
             channel = 1;
         else
             channel++;
@@ -104,20 +128,34 @@ void tune_channel(uint8_t action) {
 
     case DIAL_KEY_DOWN: // Tune down
         if (channel == 1)
-            channel = CHANNEL_NUM;
+            channel = channel_num;
         else
             channel--;
         break;
 
     case DIAL_KEY_PRESS: // confirm to tune with VTX freq send
     case DIAL_KEY_CLICK: // confirm to tune
-        if (g_setting.scan.channel != channel) {
-            g_setting.scan.channel = channel;
-            ini_putl("scan", "channel", g_setting.scan.channel, SETTING_INI);
-            dvr_cmd(DVR_STOP);
-            app_switch_to_hdzero(true);
-            if (action == DIAL_KEY_PRESS) {
-                msp_channel_update();
+        if (g_source_info.source == SOURCE_HDZERO) {
+            if (g_setting.scan.channel != channel) {
+                g_setting.scan.channel = channel;
+                ini_putl("scan", "channel", g_setting.scan.channel, SETTING_INI);
+                dvr_cmd(DVR_STOP);
+                app_switch_to_hdzero(true);
+                if (action == DIAL_KEY_PRESS) {
+                    msp_channel_update();
+                }
+            }
+        } else if (GOGGLE_VER_1V1) {
+            if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+                if (g_setting.source.analog_channel != channel) {
+                    g_setting.source.analog_channel = channel;
+                    ini_putl("source", "analog_channel", g_setting.source.analog_channel, SETTING_INI);
+                    dvr_cmd(DVR_STOP);
+                    RTC6715_SetCH(g_setting.source.analog_channel - 1);
+                    if (action == DIAL_KEY_PRESS) {
+                        msp_channel_update();
+                    }
+                }
             }
         }
         tune_timer = 0;
@@ -136,6 +174,10 @@ void tune_channel(uint8_t action) {
 void tune_channel_confirm() {
     if (g_source_info.source == SOURCE_HDZERO) {
         tune_channel(DIAL_KEY_CLICK);
+    } else if (GOGGLE_VER_1V1) {
+        if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+            tune_channel(DIAL_KEY_CLICK);
+        }
     }
 }
 
@@ -186,9 +228,17 @@ static void btn_press(void) // long press left key
         app_exit_menu();
         app_state_push(APP_STATE_VIDEO);
     } else if ((g_app_state == APP_STATE_VIDEO) || (g_app_state == APP_STATE_IMS)) { // video -> Main menu
-        if (tune_timer && g_source_info.source == SOURCE_HDZERO)
-            tune_channel(DIAL_KEY_PRESS);
-        else
+        if (tune_timer) {
+            if (g_source_info.source == SOURCE_HDZERO)
+                tune_channel(DIAL_KEY_PRESS);
+            else if (GOGGLE_VER_1V1) {
+                if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+                    tune_channel(DIAL_KEY_PRESS);
+                } else {
+                    (*btn_press_callback)();
+                }
+            }
+        } else
             (*btn_press_callback)();
     } else if (g_app_state == APP_STATE_OSD_ELEMENT_PREV) {
         ui_osd_element_pos_cancel_and_hide();

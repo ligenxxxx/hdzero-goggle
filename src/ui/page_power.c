@@ -337,7 +337,7 @@ static void page_power_on_click(uint8_t key, int sel) {
             btn_group_toggle_sel(&btn_group_power_ana);
             g_setting.power.power_ana = btn_group_get_sel(&btn_group_power_ana);
             ini_putl("power", "power_ana_rx", g_setting.power.power_ana, SETTING_INI);
-            Analog_Module_Power(1);
+            Analog_Module_Power(1, 0);
         }
         break;
 

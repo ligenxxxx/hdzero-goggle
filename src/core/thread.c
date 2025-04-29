@@ -82,7 +82,7 @@ static void check_source_signal(int vtmg_change) {
         is_valid = g_source_info.hdmi_in_status;
     else if (g_source_info.source == SOURCE_AV_IN)
         is_valid = g_source_info.av_in_status;
-    else if (g_source_info.source == SOURCE_EXPANSION)
+    else if (g_source_info.source == SOURCE_ANALOG)
         is_valid = g_source_info.av_bay_status;
     else
         is_valid = (rx_status[0].rx_valid || rx_status[1].rx_valid);

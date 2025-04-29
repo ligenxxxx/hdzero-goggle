@@ -188,7 +188,7 @@ static void dvr_update_record_conf() {
             ini_putl("venc", "kbps", 24000, REC_CONF);
             ini_putl("venc", "h265", 1, REC_CONF);
         }
-    } else if (g_source_info.source == SOURCE_AV_IN || g_source_info.source == SOURCE_EXPANSION) { // Analog
+    } else if (g_source_info.source == SOURCE_AV_IN || g_source_info.source == SOURCE_ANALOG) { // Analog
         ini_putl("venc", "width", 1280, REC_CONF);
         ini_putl("venc", "height", 720, REC_CONF);
 

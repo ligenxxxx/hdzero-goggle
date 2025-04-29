@@ -20,6 +20,7 @@
 #include "driver/beep.h"
 #include "driver/dm6302.h"
 #include "driver/hardware.h"
+#include "driver/it66121.h"
 #include "driver/oled.h"
 #include "ui/page_common.h"
 #include "util/math.h"
@@ -107,6 +108,7 @@ static void detect_motion(bool is_moving) {
             beep();
 
             OLED_ON(0); // Turn off OLED
+            // IT66121_close();
             if (g_hw_stat.source_mode == SOURCE_MODE_HDZERO) {
                 HDZero_Close(); // Turn off RF
             }
@@ -137,6 +139,7 @@ static void detect_motion(bool is_moving) {
             LOGI("OLED ON from protection.");
             OLED_Brightness(g_setting.image.oled);
             OLED_ON(1);
+            // IT66121_init();
             state = OLED_MD_DETECTING;
             cnt = 0;
         }

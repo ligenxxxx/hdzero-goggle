@@ -29,6 +29,7 @@
 #include "driver/hardware.h"
 #include "driver/nct75.h"
 #include "driver/rtc.h"
+#include "driver/rtc6715.h"
 #include "ui/page_common.h"
 #include "ui/page_fans.h"
 #include "ui/page_scannow.h"
@@ -113,6 +114,8 @@ static uint32_t osdFont_hd[OSD_VNUM][OSD_HNUM][OSD_HEIGHT_HD][OSD_WIDTH_HD];    
 static uint32_t osdFont_fhd[OSD_VNUM][OSD_HNUM][OSD_HEIGHT_FHD][OSD_WIDTH_FHD]; // 0x00bbggrr
 static osd_font_t osd_font_hd;
 static osd_font_t osd_font_fhd;
+
+static lv_obj_t *analog_rssi_bar;
 
 void osd_llock_show(bool bShow) {
     char buf[128];
@@ -264,6 +267,67 @@ void osd_vlq_show(bool bShow) {
     lv_obj_clear_flag(g_osd_hdzero.vlq[is_fhd], LV_OBJ_FLAG_HIDDEN);
 }
 
+void osd_analog_rssi_create() {
+
+    pthread_mutex_lock(&lvgl_mutex);
+    analog_rssi_bar = lv_bar_create(scr_osd[0]);
+    lv_obj_set_size(analog_rssi_bar, 128, 16);
+
+    osd_analog_rssi_update_location();
+
+    lv_bar_set_value(analog_rssi_bar, 75, LV_ANIM_OFF);
+    lv_obj_set_style_border_width(analog_rssi_bar, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(analog_rssi_bar, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(analog_rssi_bar, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(analog_rssi_bar, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(analog_rssi_bar, lv_color_hex(0x404040), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(analog_rssi_bar, lv_color_hex(0x00FF00), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(analog_rssi_bar, lv_color_hex(0x202020), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(analog_rssi_bar, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_add_flag(analog_rssi_bar, LV_OBJ_FLAG_HIDDEN);
+
+    pthread_mutex_unlock(&lvgl_mutex);
+}
+
+void osd_analog_rssi_update_location() {
+    if (g_setting.osd.embedded_mode == EMBEDDED_4x3)
+        lv_obj_set_pos(analog_rssi_bar, g_setting.osd.element[OSD_GOGGLE_ANT0].position.mode_4_3.x, g_setting.osd.element[OSD_GOGGLE_ANT0].position.mode_4_3.y + 14);
+    else
+        lv_obj_set_pos(analog_rssi_bar, g_setting.osd.element[OSD_GOGGLE_ANT0].position.mode_16_9.x, g_setting.osd.element[OSD_GOGGLE_ANT0].position.mode_16_9.y + 14);
+}
+
+void osd_analog_rssi_show(bool bShow) {
+    char buf[128];
+    // static uint8_t cnt = 0;
+
+    if (!bShow) {
+        lv_obj_add_flag(analog_rssi_bar, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    lv_obj_clear_flag(analog_rssi_bar, LV_OBJ_FLAG_HIDDEN);
+
+    int rssi_volt_mv = RTC6715_GetRssi();
+    /*
+    1600 -> 0%
+    2200 -> 100%
+    */
+
+    // if (cnt == 19)
+    //     LOGI(" rssi rssi_volt_mv:%d", rssi_volt_mv);
+
+    rssi_volt_mv -= 1600;
+    rssi_volt_mv = (rssi_volt_mv < 0) ? 0 : rssi_volt_mv;
+    rssi_volt_mv /= 6;
+    // cnt++;
+    // if (cnt == 20) {
+    //     cnt = 0;
+    //     LOGI(" rssi pct:%d", rssi_volt_mv);
+    // }
+    lv_bar_set_value(analog_rssi_bar, rssi_volt_mv, LV_ANIM_OFF);
+}
+
 ///////////////////////////////////:////////////////////////////////////////////
 // OSD channel
 // channel_osd_mode
@@ -271,17 +335,29 @@ void osd_vlq_show(bool bShow) {
 //  = 0x00 | Channel Show Time
 uint8_t channel_osd_mode;
 
-char *channel2str(uint8_t band, uint8_t channel) // channel=[1:18]
+char *channel2str(uint8_t is_hdzero, uint8_t is_lowband, uint8_t channel) // channel=[1:18]
 {
-    static char *ChannelName[2][BASE_CH_NUM] = {
+    static char *hdzero_channel_name[2][BASE_CH_NUM] = {
         {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "E1", "F1", "F2", "F4"},
         {"L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "  ", "  ", "  ", "  "},
     };
 
-    if ((channel > 0) && (channel <= CHANNEL_NUM))
-        return ChannelName[band][channel - 1];
-    else
-        return ChannelName[band][0];
+    static char *analog_channel_name[48] = {
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
+        "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8",
+        "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
+        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+        "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8",
+        "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"};
+
+    if (is_hdzero) {
+        if ((channel > 0) && (channel <= HDZERO_CHANNEL_NUM))
+            return hdzero_channel_name[is_lowband][channel - 1];
+        else
+            return hdzero_channel_name[is_lowband][0];
+    } else {
+        return analog_channel_name[channel - 1];
+    }
 }
 
 void osd_channel_show(bool bShow) {
@@ -292,12 +368,20 @@ void osd_channel_show(bool bShow) {
     if (channel_osd_mode & 0x80) {
         ch = channel_osd_mode & 0x7F;
         color = lv_color_make(0xFF, 0x20, 0x20);
-        snprintf(buf, sizeof(buf), "  To %s?  ", channel2str(g_setting.source.hdzero_band, ch));
+        sprintf(buf, "  To %s?  ", channel2str(g_source_info.source == SOURCE_HDZERO, g_setting.source.hdzero_band, ch));
         lv_obj_set_style_bg_opa(g_osd_hdzero.channel[is_fhd], LV_OPA_100, 0);
     } else {
-        ch = g_setting.scan.channel & 0x7F;
+        if (g_source_info.source == SOURCE_HDZERO)
+            ch = g_setting.scan.channel & 0x7F;
+        else if (GOGGLE_VER_1V1) {
+            if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL)
+                ch = g_setting.source.analog_channel & 0x7F;
+            else
+                return;
+        } else
+            return;
         color = lv_color_make(0xFF, 0xFF, 0xFF);
-        snprintf(buf, sizeof(buf), "CH:%s", channel2str(g_setting.source.hdzero_band, ch));
+        sprintf(buf, "CH:%s", channel2str(g_source_info.source == SOURCE_HDZERO, g_setting.source.hdzero_band, ch));
         lv_obj_set_style_bg_opa(g_osd_hdzero.channel[is_fhd], 0, 0);
     }
 
@@ -545,6 +629,9 @@ void osd_elements_set_dummy_sources() {
 void osd_hdzero_update(void) {
     char buf[128], i;
 
+    if (GOGGLE_VER_1V1)
+        RTC6715_GetRssi();
+
     if (g_osd_update_cnt < FC_OSD_CHECK_PERIOD)
         g_osd_update_cnt++;
     else if (g_osd_update_cnt == FC_OSD_CHECK_PERIOD) {
@@ -569,7 +656,9 @@ void osd_hdzero_update(void) {
         return;
     }
 
-    bool showRXOSD = g_setting.osd.is_visible && (g_source_info.source == SOURCE_HDZERO);
+    bool source_is_hdzero = (g_source_info.source == SOURCE_HDZERO);
+    bool source_is_analog = GOGGLE_VER_1V1 && (g_source_info.source == SOURCE_ANALOG) && (g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL);
+    bool showRXOSD = g_setting.osd.is_visible;
 
     osd_rec_show(g_setting.osd.is_visible);
     osd_llock_show(g_setting.osd.is_visible);
@@ -583,7 +672,7 @@ void osd_hdzero_update(void) {
         osd_vrxtemp_show();
     }
 
-    if (showRXOSD && g_osd_hdzero.vtx_temp[is_fhd]) {
+    if (showRXOSD && source_is_hdzero && g_osd_hdzero.vtx_temp[is_fhd]) {
         if (vtxTempInfo & 0x80) {
             i = vtxTempInfo & 0xF;
             if (i == 0)
@@ -597,13 +686,16 @@ void osd_hdzero_update(void) {
         lv_img_set_src(g_osd_hdzero.vtx_temp[is_fhd], buf);
     }
 
-    if (showRXOSD && g_setting.osd.element[OSD_GOGGLE_VTX_TEMP].show)
+    if (showRXOSD && source_is_hdzero && g_setting.osd.element[OSD_GOGGLE_VTX_TEMP].show)
         lv_obj_clear_flag(g_osd_hdzero.vtx_temp[is_fhd], LV_OBJ_FLAG_HIDDEN);
     else
         lv_obj_add_flag(g_osd_hdzero.vtx_temp[is_fhd], LV_OBJ_FLAG_HIDDEN);
 
     osd_channel_show(showRXOSD);
-    osd_vlq_show(showRXOSD);
+    osd_vlq_show(showRXOSD && source_is_hdzero);
+
+    if(GOGGLE_VER_1V1)
+        osd_analog_rssi_show(showRXOSD && source_is_analog);
 
     if (gif_cnt % 10 == 0) { // delay needed to allow gif to flash
         osd_resource_path(buf, "%s", is_fhd, lowBattery_gif);
@@ -623,22 +715,22 @@ void osd_hdzero_update(void) {
     osd_resource_path(buf, "ant%d.bmp", is_fhd, RSSI2Ant(rx_status[1].rx_rssi[0]));
     lv_img_set_src(g_osd_hdzero.ant3[is_fhd], buf);
 
-    if (showRXOSD && g_setting.osd.element[OSD_GOGGLE_ANT0].show)
+    if (showRXOSD && source_is_hdzero && g_setting.osd.element[OSD_GOGGLE_ANT0].show)
         lv_obj_clear_flag(g_osd_hdzero.ant0[is_fhd], LV_OBJ_FLAG_HIDDEN);
     else
         lv_obj_add_flag(g_osd_hdzero.ant0[is_fhd], LV_OBJ_FLAG_HIDDEN);
 
-    if (showRXOSD && g_setting.osd.element[OSD_GOGGLE_ANT1].show)
+    if (showRXOSD && source_is_hdzero && g_setting.osd.element[OSD_GOGGLE_ANT1].show)
         lv_obj_clear_flag(g_osd_hdzero.ant1[is_fhd], LV_OBJ_FLAG_HIDDEN);
     else
         lv_obj_add_flag(g_osd_hdzero.ant1[is_fhd], LV_OBJ_FLAG_HIDDEN);
 
-    if (showRXOSD && g_setting.osd.element[OSD_GOGGLE_ANT2].show)
+    if (showRXOSD && source_is_hdzero && g_setting.osd.element[OSD_GOGGLE_ANT2].show)
         lv_obj_clear_flag(g_osd_hdzero.ant2[is_fhd], LV_OBJ_FLAG_HIDDEN);
     else
         lv_obj_add_flag(g_osd_hdzero.ant2[is_fhd], LV_OBJ_FLAG_HIDDEN);
 
-    if (showRXOSD && g_setting.osd.element[OSD_GOGGLE_ANT3].show)
+    if (showRXOSD && source_is_hdzero && g_setting.osd.element[OSD_GOGGLE_ANT3].show)
         lv_obj_clear_flag(g_osd_hdzero.ant3[is_fhd], LV_OBJ_FLAG_HIDDEN);
     else
         lv_obj_add_flag(g_osd_hdzero.ant3[is_fhd], LV_OBJ_FLAG_HIDDEN);
@@ -779,6 +871,10 @@ static void fc_osd_init(uint8_t fhd, uint16_t OFFSET_X, uint16_t OFFSET_Y) {
             lv_obj_set_pos(img_arr[fhd][i][j], j * osd_width + OFFSET_X, i * osd_height + OFFSET_Y);
             pthread_mutex_unlock(&lvgl_mutex);
         }
+    }
+    if (!fhd) {
+        if (GOGGLE_VER_1V1)
+            osd_analog_rssi_create();
     }
 }
 

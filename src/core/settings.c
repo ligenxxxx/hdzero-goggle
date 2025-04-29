@@ -39,7 +39,7 @@ const setting_t g_setting_defaults = {
         .cell_count_mode = SETTING_POWER_CELL_COUNT_MODE_AUTO,
         .cell_count = 2,
         .osd_display_mode = SETTING_POWER_OSD_DISPLAY_MODE_TOTAL,
-        .power_ana = false,
+        .power_ana = true,
         .calibration_offset = 0,
     },
     .record = {
@@ -128,7 +128,7 @@ const setting_t g_setting_defaults = {
             // OSD_GOGGLE_CHANNEL
             {
                 .show = true,
-                .position = {.mode_4_3 = {.x = 580, .y = 0}, .mode_16_9 = {.x = 580, .y = 0}},
+                .position = {.mode_4_3 = {.x = 540, .y = 0}, .mode_16_9 = {.x = 540, .y = 0}},
             },
             // OSD_GOGGLE_SD_REC
             {
@@ -215,7 +215,9 @@ const setting_t g_setting_defaults = {
         .selftest = false,
     },
     .source = {
+        .analog_channel = 33,
         .analog_format = SETTING_SOURCES_ANALOG_FORMAT_NTSC,
+        .analog_module = SETTING_SOURCES_ANALOG_MODULE_INTERNAL,
         .analog_ratio = SETTING_SOURCES_ANALOG_RATIO_4_3,
         .hdzero_band = SETTING_SOURCES_HDZERO_BAND_RACEBAND,
         .hdzero_bw = SETTING_SOURCES_HDZERO_BW_WIDE,
@@ -333,8 +335,10 @@ void settings_load(void) {
     g_setting.fans.right_speed = ini_getl("fans", "right_speed", g_setting_defaults.fans.right_speed, SETTING_INI);
 
     // source
+    g_setting.source.analog_module = ini_getl("source", "analog_module", g_setting_defaults.source.analog_module, SETTING_INI);
     g_setting.source.analog_format = ini_getl("source", "analog_format", g_setting_defaults.source.analog_format, SETTING_INI);
     g_setting.source.analog_ratio = ini_getl("source", "analog_ratio", g_setting_defaults.source.analog_ratio, SETTING_INI);
+    g_setting.source.analog_channel = ini_getl("source", "analog_channel", g_setting_defaults.source.analog_channel, SETTING_INI);
     g_setting.source.hdzero_band = ini_getl("source", "hdzero_band", g_setting_defaults.source.hdzero_band, SETTING_INI);
     g_setting.source.hdzero_bw = ini_getl("source", "hdzero_bw", g_setting_defaults.source.hdzero_bw, SETTING_INI);
 

@@ -13,6 +13,7 @@
 #include "driver/dm6302.h"
 #include "driver/hardware.h"
 #include "driver/it66121.h"
+#include "driver/rtc6715.h"
 #include "ui/page_common.h"
 #include "ui/page_imagesettings.h"
 #include "ui/ui_image_setting.h"
@@ -52,6 +53,10 @@ void app_switch_to_menu() {
     if (g_source_info.source == SOURCE_HDMI_IN) // HDMI
         IT66121_init();
 
+    Analog_Module_Power(0, 0);
+
+    dvr_enable_line_out(false);
+
     system_script(REC_STOP_LIVE);
 }
 
@@ -65,16 +70,28 @@ void app_exit_menu() {
         app_switch_to_hdmi_in();
         break;
     case SOURCE_AV_IN:
-        app_switch_to_analog(0);
+        app_switch_to_av_in();
         break;
-    case SOURCE_EXPANSION:
-        app_switch_to_analog(1);
+    case SOURCE_ANALOG:
+        app_switch_to_analog();
         break;
     }
 }
 
-void app_switch_to_analog(bool is_bay) {
-    Source_AV(is_bay);
+void app_switch_to_analog() {
+    Analog_Module_Power(0, 1);
+
+    if (GOGGLE_VER_1V1) {
+        if (g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+            RTC6715_Open(1);
+            usleep(200 * 1000);
+            RTC6715_SetCH(g_setting.source.analog_channel - 1);
+        } else {
+            RTC6715_Open(0);
+        }
+    }
+
+    Source_AV(1);
 
     dvr_update_vi_conf(VR_720P50);
     osd_fhd(0);
@@ -84,15 +101,42 @@ void app_switch_to_analog(bool is_bay) {
     lv_timer_handler();
     Display_Osd(g_setting.record.osd);
 
-    g_setting.autoscan.last_source = is_bay ? SETTING_AUTOSCAN_SOURCE_EXPANSION : SETTING_AUTOSCAN_SOURCE_AV_IN;
+    g_setting.autoscan.last_source = SETTING_AUTOSCAN_SOURCE_ANALOG;
     ini_putl("autoscan", "last_source", g_setting.autoscan.last_source, SETTING_INI);
 
+    // audio in&out
+    dvr_select_audio_source(g_setting.record.audio_source);
+    dvr_enable_line_out(true);
+
+    // usleep(300*1000);
+    sleep(1);
+    system_script(REC_STOP_LIVE);
+}
+void app_switch_to_av_in() {
+    Analog_Module_Power(0, 0);
+
+    Source_AV(0);
+
+    dvr_update_vi_conf(VR_720P50);
+    osd_fhd(0);
+    osd_show(true);
+    lvgl_switch_to_720p();
+    osd_clear();
+    lv_timer_handler();
+    Display_Osd(g_setting.record.osd);
+
+    g_setting.autoscan.last_source = SETTING_AUTOSCAN_SOURCE_AV_IN;
+    ini_putl("autoscan", "last_source", g_setting.autoscan.last_source, SETTING_INI);
+
+    dvr_enable_line_out(true);
     // usleep(300*1000);
     sleep(1);
     system_script(REC_STOP_LIVE);
 }
 
 void app_switch_to_hdmi_in() {
+    Analog_Module_Power(0, 0);
+
     Source_HDMI_in();
     IT66121_close();
     sleep(2);
@@ -113,9 +157,11 @@ void app_switch_to_hdmi_in() {
 
     app_state_push(APP_STATE_VIDEO);
     g_source_info.source = SOURCE_HDMI_IN;
-    dvr_enable_line_out(false);
     g_setting.autoscan.last_source = SETTING_AUTOSCAN_SOURCE_HDMI_IN;
     ini_putl("autoscan", "last_source", g_setting.autoscan.last_source, SETTING_INI);
+
+    // audio out
+    dvr_enable_line_out(false);
 
     system_script(REC_STOP_LIVE);
 }
@@ -126,6 +172,8 @@ void app_switch_to_hdmi_in() {
 //    false = user selected from auto scan page
 void app_switch_to_hdzero(bool is_default) {
     int ch;
+
+    Analog_Module_Power(0, 0);
 
     if (is_default) {
         ch = g_setting.scan.channel - 1;
@@ -179,6 +227,9 @@ void app_switch_to_hdzero(bool is_default) {
 
     g_setting.autoscan.last_source = SETTING_AUTOSCAN_SOURCE_HDZERO;
     ini_putl("autoscan", "last_source", g_setting.autoscan.last_source, SETTING_INI);
+
+    dvr_select_audio_source(g_setting.record.audio_source);
+    dvr_enable_line_out(false);
 
     dvr_update_vi_conf(CAM_MODE);
     system_script(REC_STOP_LIVE);

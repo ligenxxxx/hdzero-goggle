@@ -9,6 +9,7 @@
 #include "core/osd.h"
 #include "core/settings.h"
 #include "driver/beep.h"
+#include "driver/hardware.h"
 #include "lang/language.h"
 #include "ui/page_common.h"
 #include "ui/page_playback.h"
@@ -123,7 +124,21 @@ int statusbar_init(void) {
     lv_label_set_text(label[STS_SDCARD], buf);
     lv_label_set_recolor(label[STS_SDCARD], true);
 
-    snprintf(buf, sizeof(buf), "%s: HDZero %s", _lang("RF"), channel2str(g_setting.source.hdzero_band, g_setting.scan.channel & 0x7F));
+    if (g_source_info.source == SOURCE_HDZERO)
+        snprintf(buf, sizeof(buf), "%s: HDZero %s", _lang("RF"), channel2str(1, g_setting.source.hdzero_band, g_setting.scan.channel & 0x7F));
+    else if (g_source_info.source == SOURCE_HDMI_IN)
+        snprintf(buf, sizeof(buf), "HDMI %s", _lang("In"));
+    else if (g_source_info.source == SOURCE_AV_IN)
+        snprintf(buf, sizeof(buf), "AV %s", _lang("In"));
+    else if (g_source_info.source == SOURCE_ANALOG) {
+        if (GOGGLE_VER_1V1 && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+            snprintf(buf, sizeof(buf), "%s: Analog %s", _lang("RF"), channel2str(0, 0, g_setting.source.analog_channel));
+        } else {
+            snprintf(buf, sizeof(buf), "%s", _lang("Expansion Module"));
+        }
+    } else
+        snprintf(buf, sizeof(buf), " ");
+
     lv_label_set_text(label[STS_SOURCE], buf);
 
     snprintf(buf, sizeof(buf), "ELRS: %s", _lang("Off"));
@@ -187,26 +202,37 @@ void statubar_update(void) {
         }
     }
 
-    static int channel_last = 0;
-    static source_t source_last = SOURCE_HDZERO;
-    static setting_sources_hdzero_band_t hdzero_band_last = SETTING_SOURCES_HDZERO_BAND_RACEBAND;
-    if ((channel_last != g_setting.scan.channel) || (source_last != g_source_info.source) || (hdzero_band_last != g_setting.source.hdzero_band)) {
+    static int hdzero_channel_last = 0;
+    static int analog_channel_last = 0;
+    static uint8_t source_last = 0xff;
+    static uint8_t hdzero_band_last = 0xff;
+    static uint8_t analog_module_last = 0xff;
+    uint8_t channel_changed = (hdzero_channel_last != g_setting.scan.channel) || (analog_channel_last != g_setting.source.analog_channel);
+    if (channel_changed || (source_last != g_source_info.source) || (hdzero_band_last != g_setting.source.hdzero_band) || (analog_module_last == g_setting.source.analog_module)) {
         memset(buf, 0, sizeof(buf));
-        if (g_source_info.source == SOURCE_HDZERO) { // HDZero
-            int ch = g_setting.scan.channel & 0x7F;
-            snprintf(buf, sizeof(buf), "%s: HDZero %s", _lang("RF"), channel2str(g_setting.source.hdzero_band, g_setting.scan.channel & 0x7F));
-        } else if (g_source_info.source == SOURCE_HDMI_IN)
+        if (g_source_info.source == SOURCE_HDZERO)
+            snprintf(buf, sizeof(buf), "%s: HDZero %s", _lang("RF"), channel2str(1, g_setting.source.hdzero_band, g_setting.scan.channel & 0x7F));
+        else if (g_source_info.source == SOURCE_HDMI_IN)
             snprintf(buf, sizeof(buf), "HDMI %s", _lang("In"));
         else if (g_source_info.source == SOURCE_AV_IN)
             snprintf(buf, sizeof(buf), "AV %s", _lang("In"));
-        else
-            snprintf(buf, sizeof(buf), "%s", _lang("Expansion Module"));
+        else if (g_source_info.source == SOURCE_ANALOG) {
+            if (GOGGLE_VER_1V1 && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+                snprintf(buf, sizeof(buf), "%s: %s %s", _lang("RF"), _lang("Analog"), channel2str(0, 0, g_setting.source.analog_channel));
+            } else {
+                snprintf(buf, sizeof(buf), "%s", _lang("Expansion Module"));
+            }
+        } else
+            snprintf(buf, sizeof(buf), " ");
 
         lv_label_set_text(label[STS_SOURCE], buf);
     }
-    channel_last = g_setting.scan.channel;
+
+    hdzero_channel_last = g_setting.scan.channel;
+    analog_channel_last = g_setting.source.analog_channel;
     source_last = g_source_info.source;
     hdzero_band_last = g_setting.source.hdzero_band;
+    analog_module_last = g_setting.source.analog_module;
 
     if (page_storage_is_sd_repair_active()) {
         lv_img_set_src(img_sdc, &img_sdcard);

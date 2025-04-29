@@ -9,6 +9,7 @@
 #include "driver/dm5680.h"
 #include "driver/fans.h"
 #include "driver/hardware.h"
+#include "driver/it66121.h"
 
 #include "log/log.h"
 
@@ -39,8 +40,12 @@ void go_sleep() {
 
     // Turn off Analog Receiver  -- Batch 2 goggles only
     if (getHwRevision() >= HW_REV_2) {
-        DM5680_ExternalAnalog_Power(1);
+        DM5680_ExternalAnalog_Power(0);
+        DM5680_InternalAnalog_Power(0);
     }
+
+    // Turn off HDMI out
+    IT66121_close();
 
     // Minimum fan
     fans_auto_mode_save = g_setting.fans.auto_mode;
@@ -63,7 +68,10 @@ void wake_up() {
     isSleeping = false;
 
     OLED_ON(1); // Turn on OLED
-    Analog_Module_Power(1);
+
+    IT66121_init();
+
+    Analog_Module_Power(1, 0);
 
     g_setting.fans.top_speed = fan_speed_save.top;
     g_setting.fans.left_speed = fan_speed_save.left;
