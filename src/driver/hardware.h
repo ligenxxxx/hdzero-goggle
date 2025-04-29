@@ -7,6 +7,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+extern int GOGGLE_VER_1V1;
+
 typedef enum {
     SOURCE_MODE_UI = 0,
     SOURCE_MODE_HDZERO = 1,
@@ -64,7 +66,7 @@ typedef struct {
     int av_chid; // 0=AV in; 1=Module bay
     int av_pal[2];
     int av_pal_w;
-    int av_valid[2]; // 0=invalid; 1=AV in; 2=Module bay
+    int av_valid[2];
 
     // hdmi in
     int hdmiin_valid;
@@ -100,7 +102,7 @@ void Set_Saturation(uint8_t sat);
 void Set_HT_status(uint8_t is_open, uint8_t frame_period, uint8_t sync_len);
 void Set_HT_dat(uint16_t ch0, uint16_t ch1, uint16_t ch2);
 
-void Analog_Module_Power(bool Force);
+void Analog_Module_Power(bool Force, bool on);
 
 int HDZERO_detect();
 int AV_in_detect();

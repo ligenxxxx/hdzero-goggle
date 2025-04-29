@@ -25,6 +25,7 @@
 #include "it66121.h"
 #include "msp_displayport.h"
 #include "oled.h"
+#include "rtc6715.h"
 #include "uart.h"
 #include "ui/ui_porting.h"
 #include "util/system.h"
@@ -33,6 +34,8 @@
 // global
 hw_status_t g_hw_stat;
 int fhd_req = 0;
+int GOGGLE_VER_1V1 = 1;
+
 // local
 pthread_mutex_t hardware_mutex;
 
@@ -579,6 +582,10 @@ void Display_UI_init() {
 
     OLED_SetTMG(0);
     system_exec("aww 0x0300b084 0x00015565"); // Set vdpo clock driver strength to level 2. Refer datasheet 12.7.5.11
+
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0xa7, 0x00);
+
     system_exec("aww 0x06542018 0x00000044"); // disable horizontal chroma FIR filter.
 }
 
@@ -589,6 +596,7 @@ void Display_UI() {
     Display_UI_init();
 
     OLED_display(1);
+    // OLED_reopen(0);
     pthread_mutex_unlock(&hardware_mutex);
 }
 
@@ -610,6 +618,8 @@ void Display_720P60_50_t(int mode, uint8_t is_43) // fps: 0=50, 1=60
     else
         MFPGA_Set720P60(mode, is_43);
     OLED_SetTMG(1);
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0xa7, 0x11);
 
     I2C_Write(ADDR_FPGA, 0x8C, 0x01);
 
@@ -632,6 +642,8 @@ void Display_720P90_t(int mode) {
     DM5680_SetFPS(mode);
     MFPGA_Set720P90(mode);
     OLED_SetTMG(1);
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0xa7, 0x01);
 
     I2C_Write(ADDR_FPGA, 0x8C, 0x01);
 
@@ -655,7 +667,14 @@ void Display_1080P30_t(int mode) {
 
     DM5680_SetFPS(mode);
     MFPGA_Set1080P30();
-    OLED_SetTMG(2);
+
+    if (GOGGLE_VER_1V1 == 0)
+        OLED_SetTMG(2);
+    else
+        OLED_SetTMG(0);
+
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0xa7, 0x00);
 
     I2C_Write(ADDR_FPGA, 0x8C, 0x01);
 
@@ -791,22 +810,19 @@ void AV_Mode_Switch(int is_pal) {
     }
 }
 
-void Source_AV(uint8_t sel) // 0=AV in, 1=AV module
+void Source_AV(uint8_t sel) // 0=AV in, 1= analog module
 {
     pthread_mutex_lock(&hardware_mutex);
     OLED_display(0);
     I2C_Write(ADDR_FPGA, 0x8C, 0x00);
 
-    g_hw_stat.av_chid = sel ? 1 : 0;
+    g_hw_stat.av_chid = sel & 1;
 
     TP2825_Config(sel, g_setting.source.analog_format);
 
-    // TP2825_Switch_Mode(g_hw_stat.av_pal[g_hw_stat.av_chid]);
     TP2825_Switch_Mode(g_setting.source.analog_format);
     TP2825_Switch_CH(g_hw_stat.av_chid);
 
-    // AV_Mode_Switch_fpga(g_hw_stat.av_pal[g_hw_stat.av_chid]);
-    // g_hw_stat.av_pal_w = g_hw_stat.av_pal[g_hw_stat.av_chid];
     AV_Mode_Switch_fpga(g_setting.source.analog_format);
     g_hw_stat.av_pal_w = g_setting.source.analog_format;
 
@@ -817,11 +833,12 @@ void Source_AV(uint8_t sel) // 0=AV in, 1=AV module
 
     HDZero_Close();
     OLED_SetTMG(1);
+    I2C_Write(ADDR_FPGA, 0xa7, 0x11);
 
     if (g_setting.source.analog_ratio == SETTING_SOURCES_ANALOG_RATIO_4_3)
-        I2C_Write(ADDR_FPGA, 0x8f, 0x80); // bit[7]: 0=16:9, 1=original
+        I2C_Write(ADDR_FPGA, 0x8f, 0x80); // bit[7]: 0=15:9, 1=original
     else
-        I2C_Write(ADDR_FPGA, 0x8f, 0x00); // bit[7]: 0=16:9, 1=original
+        I2C_Write(ADDR_FPGA, 0x8f, 0x00); // bit[7]: 0=15:9, 1=original
 
     I2C_Write(ADDR_FPGA, 0x8C, 0x02);
 
@@ -847,14 +864,28 @@ int AV_in_detect() // return = 1: vtmg to V536 changed
     rdat = I2C_Read(ADDR_TP2825, 0x01);
 
     if (g_hw_stat.source_mode == SOURCE_MODE_UI) { // detect in UI mode
-        TP2825_Set_Clamp(0);
+        if (GOGGLE_VER_1V1 == 0)
+            TP2825_Set_Clamp(0);
 
-        det = (rdat & 0x80) ? 0 : 1;
+        if (GOGGLE_VER_1V1) {
+            det = (rdat & 0x80) ? 0 : 1;
+        } else {
+            int vloss, h_lock, vh_lock;
+            vloss = ((rdat & 0x80) == 0x80);
+            h_lock = ((rdat & 0x60) == 0x60);
+            vh_lock = ((rdat & 0x68) == 0x68);
+            det = (vloss == 0) && (vh_lock || h_lock);
+        }
+
         if (det_last != det) {
             det_last = det;
         } else {
             g_hw_stat.av_valid[g_hw_stat.av_chid] = det;
-            g_hw_stat.av_pal[g_hw_stat.av_chid] = ((rdat & 0xAC) == 0x2c) ? 1 : 0;
+            if (GOGGLE_VER_1V1) {
+                g_hw_stat.av_pal[g_hw_stat.av_chid] = (rdat & 0x01) ? 0 : 1;
+            } else {
+                g_hw_stat.av_pal[g_hw_stat.av_chid] = ((rdat & 0xAC) == 0x2c) ? 1 : 0;
+            }
 
             g_hw_stat.av_chid = g_hw_stat.av_chid ? 0 : 1;
             TP2825_Switch_CH(g_hw_stat.av_chid);
@@ -863,7 +894,10 @@ int AV_in_detect() // return = 1: vtmg to V536 changed
 
         det_cnt = det2_cnt = 0;
     } else if (g_hw_stat.source_mode == SOURCE_MODE_AV) { // detect in AV_in/Module_bay mode
-        det = ((rdat & 0xAE) == (g_hw_stat.av_pal_w ? 0x28 : 0x2C)) ? 1 : 0;
+        if (GOGGLE_VER_1V1 == 0)
+            det = ((rdat & 0xAE) == (g_hw_stat.av_pal_w ? 0x28 : 0x2C)) ? 1 : 0;
+        else
+            det = ((rdat & 0xC9) == (g_hw_stat.av_pal_w ? 0x48 : 0x49)) ? 1 : 0;
 
         if (det_last != det) {
             det_last = det;
@@ -876,26 +910,39 @@ int AV_in_detect() // return = 1: vtmg to V536 changed
             g_hw_stat.av_pal_w = g_hw_stat.av_pal_w ? 0 : 1;
 
             TP2825_Switch_Mode(g_hw_stat.av_pal_w);
+            if (GOGGLE_VER_1V1)
+                AV_Mode_Switch(g_hw_stat.av_pal_w);
             // LOGI("Switch mode:%d", g_hw_stat.av_pal_w);
 
-            if (g_hw_stat.av_pal[g_hw_stat.av_chid])
+            if (g_hw_stat.av_pal_w)
                 I2C_Write(ADDR_FPGA, 0x80, 0x10);
             else
                 I2C_Write(ADDR_FPGA, 0x80, 0x00);
 
-            if (g_hw_stat.av_pal_w == g_hw_stat.av_pal[g_hw_stat.av_chid])
-                I2C_Write(ADDR_FPGA, 0x89, 0x01);
-            else
-                I2C_Write(ADDR_FPGA, 0x89, 0x00);
+            if (GOGGLE_VER_1V1 == 0) {
+                if (g_hw_stat.av_pal_w == g_hw_stat.av_pal[g_hw_stat.av_chid])
+                    I2C_Write(ADDR_FPGA, 0x89, 0x01);
+                else
+                    I2C_Write(ADDR_FPGA, 0x89, 0x00);
+            }
 
             g_hw_stat.av_valid[g_hw_stat.av_chid] = 0;
+            ret = 1;
 
             LOGI("AV_in_detect -- switch: av_pal = %d,  rdat = %02x\n", g_hw_stat.av_pal_w, rdat);
         } else {
             int vloss, h_lock, vh_lock;
-            vloss = (rdat & 0x80) ? 1 : 0;
-            h_lock = ((rdat & 0x28) == 0x28) ? 1 : 0;
-            vh_lock = ((rdat & 0x68) == 0x68) ? 1 : 0;
+
+            if (GOGGLE_VER_1V1 == 0) {
+                vloss = (rdat & 0x80) ? 1 : 0;
+                h_lock = ((rdat & 0x28) == 0x28) ? 1 : 0;
+                vh_lock = ((rdat & 0x68) == 0x68) ? 1 : 0;
+            } else {
+                vloss = ((rdat & 0x80) == 0x80);
+                h_lock = ((rdat & 0x60) == 0x60);
+                vh_lock = ((rdat & 0x68) == 0x68);
+                vloss |= ((rdat & 0x6a) == 0); // vloss = 0 if no signal ???
+            }
 
             // LOGI("rdat=%x, state=%d, dcnt2=%d", rdat,g_hw_stat.av_valid[g_hw_stat.av_chid],det2_cnt);
 
@@ -915,7 +962,7 @@ int AV_in_detect() // return = 1: vtmg to V536 changed
                     if (det2_cnt >= AV_DET_LOCK_CNT) {
                         det2_cnt = 0;
                         g_hw_stat.av_valid[g_hw_stat.av_chid] = 2;
-                        ret = 1;
+                        // ret = 1;
                     }
                 } else
                     det2_cnt = 0;
@@ -936,11 +983,13 @@ int AV_in_detect() // return = 1: vtmg to V536 changed
                 break;
             }
 
-            int clamp_idx = g_hw_stat.av_valid[g_hw_stat.av_chid];
-            if (clamp_idx == 1) {
-                clamp_idx = vh_lock ? 2 : 1;
+            if (GOGGLE_VER_1V1 == 0) {
+                int clamp_idx = g_hw_stat.av_valid[g_hw_stat.av_chid];
+                if (clamp_idx == 1) {
+                    clamp_idx = vh_lock ? 2 : 1;
+                }
+                TP2825_Set_Clamp(clamp_idx);
             }
-            TP2825_Set_Clamp(clamp_idx);
         }
     }
 
@@ -956,7 +1005,8 @@ void Source_HDMI_in() {
     HDZero_Close();
     // OLED_SetTMG(0);
 
-    I2C_Write(ADDR_FPGA, 0x8C, 0x04);
+    if (GOGGLE_VER_1V1 == 0)
+        I2C_Write(ADDR_FPGA, 0x8C, 0x04);
     I2C_Write(ADDR_FPGA, 0x84, 0x00);
 
     g_hw_stat.source_mode = SOURCE_MODE_HDMIIN;
@@ -1003,11 +1053,18 @@ int HDMI_in_detect() {
                         pclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080P60);
                         I2C_Write(ADDR_FPGA, 0x80, 0x00);
 
-                        OLED_SetTMG(2);
+                        if (GOGGLE_VER_1V1 == 0)
+                            OLED_SetTMG(2);
+                        else
+                            OLED_SetTMG(0);
+
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x00);
 
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(0);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_1080P60;
                         break;
 
@@ -1021,27 +1078,40 @@ int HDMI_in_detect() {
                         I2C_Write(ADDR_FPGA, 0x80, 0x20);
 
                         OLED_SetTMG(0);
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x00);
 
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(0);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_1080P50;
                         break;
 
                     case HDMIIN_VTMG_1080Pother:
-                        system_exec("dispw -s vdpo 1080p50");
-                        dvr_update_vi_conf(VR_1080P50);
-                        g_hw_stat.vdpo_tmg = VDPO_TMG_1080P50;
-                        vclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080POTHER, (freq_ref < 63));
-                        pclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080POTHER);
-
+                        if (GOGGLE_VER_1V1) {
+                            system_exec("dispw -s vdpo 1080p60");
+                            dvr_update_vi_conf(VR_1080P60);
+                            g_hw_stat.vdpo_tmg = VDPO_TMG_1080P60;
+                            vclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080P60, (freq_ref < 63));
+                            pclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080P60);
+                        } else {
+                            system_exec("dispw -s vdpo 1080p50");
+                            dvr_update_vi_conf(VR_1080P50);
+                            g_hw_stat.vdpo_tmg = VDPO_TMG_1080P50;
+                            vclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080POTHER, (freq_ref < 63));
+                            pclk_phase_set(VIDEO_SOURCE_HDMI_IN_1080POTHER);
+                        }
                         I2C_Write(ADDR_FPGA, 0x80, 0x40);
 
                         OLED_SetTMG(0);
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x00);
 
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(0);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_1080Pother;
                         break;
 
@@ -1056,9 +1126,13 @@ int HDMI_in_detect() {
 
                         OLED_SetTMG(1);
 
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x11);
+
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(1);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_720P50;
                         break;
 
@@ -1071,10 +1145,13 @@ int HDMI_in_detect() {
                         I2C_Write(ADDR_FPGA, 0x80, 0x80);
 
                         OLED_SetTMG(1);
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x11);
 
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(1);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_720P60;
                         break;
 
@@ -1088,10 +1165,13 @@ int HDMI_in_detect() {
                         I2C_Write(ADDR_FPGA, 0x80, 0xA0);
 
                         OLED_SetTMG(1);
+                        if (GOGGLE_VER_1V1)
+                            I2C_Write(ADDR_FPGA, 0xa7, 0x01);
 
                         I2C_Write(ADDR_FPGA, 0x8C, 0x04);
                         I2C_Write(ADDR_FPGA, 0x06, 0x0F);
                         OLED_display(1);
+                        // OLED_reopen(1);
                         g_hw_stat.hdmiin_vtmg = HDMIIN_VTMG_720P100;
                         break;
                     }
@@ -1155,24 +1235,42 @@ void Set_HT_dat(uint16_t ch0, uint16_t ch1, uint16_t ch2) {
     I2C_Write(ADDR_FPGA, 0x77, (ch2 >> 8) & 0xff);
 }
 
-void Analog_Module_Power(bool ForceSet) {
+void Analog_Module_Power(bool ForceSet, bool on) {
     // Batch 2 goggles only
     if (getHwRevision() >= HW_REV_2) {
-        static bool Analog_Module_Power_State = 0;
-        static bool Analog_Module_Power_State_Last = 0;
-        if (g_setting.power.power_ana == 0) {
-            Analog_Module_Power_State = 0;
-        } else {
-            if (g_source_info.source != SOURCE_EXPANSION) {
+        // bit[0]/bit[1]: internal / external
+        // 1/0 power on/off
+        static uint8_t Analog_Module_Power_State = 0;
+        static uint8_t Analog_Module_Power_State_Last = 0;
+
+        if (g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
+            // always power off external module
+            if (on) {
                 Analog_Module_Power_State = 1;
             } else {
                 Analog_Module_Power_State = 0;
             }
+        } else {
+            if (g_setting.power.power_ana == 0) {
+                // always power on external module
+                Analog_Module_Power_State = 2;
+            } else {
+                // auto
+                if (on) {
+                    Analog_Module_Power_State = 2;
+                } else {
+                    Analog_Module_Power_State = 0;
+                }
+            }
         }
+
         if ((Analog_Module_Power_State_Last != Analog_Module_Power_State) || (ForceSet == 1)) {
-            beep();
+            LOGI("Analog_Module_Power_State:%d", Analog_Module_Power_State);
+            if ((Analog_Module_Power_State_Last & 0x02) != (Analog_Module_Power_State & 0x02))
+                beep(); // only beep when external module power changed
             Analog_Module_Power_State_Last = Analog_Module_Power_State;
-            DM5680_ExternalAnalog_Power(Analog_Module_Power_State);
+            DM5680_InternalAnalog_Power(Analog_Module_Power_State & 1);
+            DM5680_ExternalAnalog_Power((Analog_Module_Power_State >> 1) & 1);
         }
     }
 }
@@ -1193,8 +1291,15 @@ int Get_HAN_status() // ret: 0=error; 1=ok
 {
     uint8_t rdat;
 
+    if (GOGGLE_VER_1V1)
+        system_exec("aww 0x0300b340 0x00000008");
+
     I2C_Write(ADDR_FPGA, 0x81, 0x01);
-    sleep(1);
+
+    if (GOGGLE_VER_1V1)
+        usleep(10000);
+    else
+        sleep(1);
 
     rdat = I2C_Read(ADDR_FPGA, 0x18);
 
