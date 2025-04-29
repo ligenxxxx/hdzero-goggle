@@ -1,6 +1,7 @@
 #include "it66121.h"
 #include "../core/common.hh"
 #include "dm5680.h"
+#include "driver/hardware.h"
 #include "i2c.h"
 #include <log/log.h>
 #include <stdio.h>
