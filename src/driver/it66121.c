@@ -2,6 +2,7 @@
 #include "../core/common.hh"
 #include "dm5680.h"
 #include "i2c.h"
+#include <log/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,10 +10,16 @@
 uint8_t it66121_vi_phase = 0;
 
 void IT66121_close() {
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0x8a, 0x00);
+
     DM5680_ResetHDMI_TX(0);
 }
 
 void IT66121_init() {
+    if (GOGGLE_VER_1V1)
+        I2C_Write(ADDR_FPGA, 0x8a, 0x01);
+
     DM5680_ResetHDMI_TX(0);
     usleep(1000);
     DM5680_ResetHDMI_TX(1);
