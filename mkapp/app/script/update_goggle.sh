@@ -99,6 +99,7 @@ update_fpga()
 
 	mtd_debug erase /dev/mtd10 0 16777216
 	mtd_debug write /dev/mtd10 0 $filesize2 ${TMP_DIR}/HDZGOGGLE_VA.bin
+	mtd_debug write /dev/mtd10 8388608 $filesize2 ${TMP_DIR}/HDZGOGGLE_VA.bin
 	echo "update finish VA, running"
 	gpio_clear_reset
 	sleep 1
