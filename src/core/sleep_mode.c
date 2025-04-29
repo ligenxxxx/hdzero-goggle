@@ -39,7 +39,7 @@ void go_sleep() {
 
     // Turn off Analog Receiver  -- Batch 2 goggles only
     if (getHwRevision() >= HW_REV_2) {
-        DM5680_Power_AnalogModule(1);
+        DM5680_ExternalAnalog_Power(1);
     }
 
     // Minimum fan
@@ -77,14 +77,13 @@ void wake_up() {
     if (previousState == APP_STATE_SUBMENU) {
         submenu_exit();
     } else if (previousState == APP_STATE_VIDEO) {
-        app_switch_to_menu(); // Necessary to display the progress bar
+        app_switch_to_menu();          // Necessary to display the progress bar
         app_state_push(previousState); // Because app_switch_to_menu() pushes main menu state
         app_exit_menu();
     }
 }
 
-void sleep_reminder()
-{
+void sleep_reminder() {
     if (isSleeping == false) {
         return;
     }
