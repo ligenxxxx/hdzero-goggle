@@ -99,7 +99,7 @@ static lv_obj_t *page_source_create(lv_obj_t *parent, panel_arr_t *arr) {
 
 char *state2string(uint8_t status) {
     static char buf[32];
-    snprintf(buf, sizeof(buf), "#%s %s#", status ? "00FF00" : "C0C0C0", status ? _lang("Connected") : _lang("Disconnected"));
+    snprintf(buf, sizeof(buf), "#%s %s#", status ? "00FF00" : "C0C0C0", status ? _lang("Expansion Module") : _lang("Expansion Module"));
     return buf;
 }
 
@@ -135,7 +135,7 @@ void source_status_timer() {
             snprintf(buf, sizeof(buf), "%s: %s", _lang("Analog"), _lang("Expansion Module"));
         }
     } else {
-        snprintf(buf, sizeof(buf), "%s: %s", _lang("Expansion Module"), state2string(g_source_info.av_bay_status));
+        snprintf(buf, sizeof(buf), "%s: %s", _lang("Analog"), state2string(g_source_info.av_bay_status));
     }
     lv_label_set_text(label[1], buf);
 
