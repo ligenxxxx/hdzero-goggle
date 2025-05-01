@@ -64,20 +64,38 @@ bit[3]   dvr
 bit[5:4] hdmi out
 bit[6]   oled
 */
-uint32_t pclk_phase_default[VIDEO_SOURCE_NUM] = {
-    0x00000001,
-    0x00000000, // VIDEO_SOURCE_MENU_UI
-    0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P60_50
-    0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P90
-    0x00000000, // VIDEO_SOURCE_HDZERO_IN_1080P30
-    0x00000000, // VIDEO_SOURCE_AV_IN
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P50
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P60
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_1080POTHER
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_720P50
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_720P60
-    0x00000000, // VIDEO_SOURCE_HDMI_IN_720P100
-    0x00000000, // VIDEO_SOURCE_TP2825_EX, DO NOT USE
+uint32_t pclk_phase_default[2][VIDEO_SOURCE_NUM] = {
+    {
+        0x00000001,
+        0x00000000, // VIDEO_SOURCE_MENU_UI
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P60_50
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P90
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_1080P30
+        0x00000000, // VIDEO_SOURCE_AV_IN
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P50
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P60
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080POTHER
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P50
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P60
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P100
+        0x00000000, // VIDEO_SOURCE_TP2825_EX, DO NOT USE
+    },
+    {
+        // GOGGLE_VER_1V1
+        0x00000001,
+        0x00000004, // VIDEO_SOURCE_MENU_UI
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P60_50
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_720P90
+        0x00000000, // VIDEO_SOURCE_HDZERO_IN_1080P30
+        0x00000000, // VIDEO_SOURCE_AV_IN
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P50
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080P60
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_1080POTHER
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P50
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P60
+        0x00000000, // VIDEO_SOURCE_HDMI_IN_720P100
+        0x00000000, // VIDEO_SOURCE_TP2825_EX, DO NOT USE
+    },
 };
 
 uint32_t vclk_phase_load[VIDEO_SOURCE_NUM];
@@ -387,17 +405,17 @@ void pclk_phase_load_system() {
 
     if (pclk_phase_read_file("/etc/pclk_phase.cfg")) {
         // if no .cfg file, write it.
-        pclk_phase_write_file("/etc/pclk_phase.cfg", pclk_phase_default);
+        pclk_phase_write_file("/etc/pclk_phase.cfg", pclk_phase_default[GOGGLE_VER_1V1]);
 
         for (i = 0; i < VIDEO_SOURCE_NUM; i++) {
-            pclk_phase[i] = pclk_phase_default[i];
+            pclk_phase[i] = pclk_phase_default[GOGGLE_VER_1V1][i];
         }
-    } else if (pclk_phase_load[VIDEO_SOURCE_VERSION] != 0xffffffff && pclk_phase_load[VIDEO_SOURCE_VERSION] != pclk_phase_default[VIDEO_SOURCE_VERSION]) {
+    } else if (pclk_phase_load[VIDEO_SOURCE_VERSION] != 0xffffffff && pclk_phase_load[VIDEO_SOURCE_VERSION] != pclk_phase_default[GOGGLE_VER_1V1][VIDEO_SOURCE_VERSION]) {
         // newer .cfg file version
-        pclk_phase_write_file("/etc/pclk_phase.cfg", pclk_phase_default);
+        pclk_phase_write_file("/etc/pclk_phase.cfg", pclk_phase_default[GOGGLE_VER_1V1]);
 
         for (i = 0; i < VIDEO_SOURCE_NUM; i++) {
-            pclk_phase[i] = pclk_phase_default[i];
+            pclk_phase[i] = pclk_phase_default[GOGGLE_VER_1V1][i];
         }
     } else {
         for (i = 0; i < VIDEO_SOURCE_NUM; i++) {
@@ -573,6 +591,10 @@ void Display_UI_init() {
 
     system_exec("dispw -s vdpo 1080p50");
     g_hw_stat.vdpo_tmg = VDPO_TMG_1080P50;
+
+    if (GOGGLE_VER_1V1)
+        system_exec("aww 0x0300b340 0x00000008");
+
     Display_VO_SWITCH(0);
 
     vclk_phase_set(VIDEO_SOURCE_MENU_UI, 0);

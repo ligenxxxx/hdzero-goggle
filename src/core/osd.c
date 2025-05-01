@@ -694,7 +694,7 @@ void osd_hdzero_update(void) {
     osd_channel_show(showRXOSD);
     osd_vlq_show(showRXOSD && source_is_hdzero);
 
-    if(GOGGLE_VER_1V1)
+    if (GOGGLE_VER_1V1)
         osd_analog_rssi_show(showRXOSD && source_is_analog);
 
     if (gif_cnt % 10 == 0) { // delay needed to allow gif to flash
@@ -850,6 +850,10 @@ void osd_update_element_positions() {
     osd_object_set_pos(is_fhd, g_osd_hdzero.ant1[is_fhd], &g_setting.osd.element[OSD_GOGGLE_ANT1].position);
     osd_object_set_pos(is_fhd, g_osd_hdzero.ant2[is_fhd], &g_setting.osd.element[OSD_GOGGLE_ANT2].position);
     osd_object_set_pos(is_fhd, g_osd_hdzero.ant3[is_fhd], &g_setting.osd.element[OSD_GOGGLE_ANT3].position);
+
+    if (GOGGLE_VER_1V1)
+        osd_analog_rssi_update_location();
+
     if (g_setting.storage.selftest) {
         osd_object_set_pos(is_fhd, g_osd_hdzero.osd_tempe[is_fhd][0], &g_setting.osd.element[OSD_GOGGLE_TEMP_TOP].position);
         osd_object_set_pos(is_fhd, g_osd_hdzero.osd_tempe[is_fhd][1], &g_setting.osd.element[OSD_GOGGLE_TEMP_LEFT].position);
