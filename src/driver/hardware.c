@@ -34,7 +34,7 @@
 // global
 hw_status_t g_hw_stat;
 int fhd_req = 0;
-int GOGGLE_VER_1V1 = 1;
+int GOGGLE_VER_1V1 = 0;
 
 // local
 pthread_mutex_t hardware_mutex;
