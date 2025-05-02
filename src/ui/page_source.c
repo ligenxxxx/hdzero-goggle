@@ -62,7 +62,11 @@ static lv_obj_t *page_source_create(lv_obj_t *parent, panel_arr_t *arr) {
     create_select_item(arr, cont);
 
     label[0] = create_label_item(cont, "HDZero", 1, row++, 3);
-    label[1] = create_label_item(cont, "Analog", 1, row++, 3);
+    if (GOGGLE_VER_1V1) {
+        label[1] = create_label_item(cont, "Analog", 1, row++, 3);
+    } else {
+        label[1] = create_label_item(cont, _lang("Expansion Module"), 1, row++, 3);
+    }
     snprintf(buf, sizeof(buf), "HDMI %s", _lang("In"));
     label[2] = create_label_item(cont, buf, 1, row++, 3);
     snprintf(buf, sizeof(buf), "AV %s", _lang("In"));
@@ -99,7 +103,7 @@ static lv_obj_t *page_source_create(lv_obj_t *parent, panel_arr_t *arr) {
 
 char *state2string(uint8_t status) {
     static char buf[32];
-    snprintf(buf, sizeof(buf), "#%s %s#", status ? "00FF00" : "C0C0C0", status ? _lang("Expansion Module") : _lang("Expansion Module"));
+    snprintf(buf, sizeof(buf), "#%s %s#", status ? "00FF00" : "C0C0C0", status ? _lang("Connected") : _lang("Disconnected"));
     return buf;
 }
 
@@ -135,7 +139,7 @@ void source_status_timer() {
             snprintf(buf, sizeof(buf), "%s: %s", _lang("Analog"), _lang("Expansion Module"));
         }
     } else {
-        snprintf(buf, sizeof(buf), "%s: %s", _lang("Analog"), state2string(g_source_info.av_bay_status));
+        snprintf(buf, sizeof(buf), "%s: %s", _lang("Expansion Module"), state2string(g_source_info.av_bay_status));
     }
     lv_label_set_text(label[1], buf);
 
