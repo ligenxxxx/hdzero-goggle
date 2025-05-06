@@ -374,12 +374,10 @@ void osd_channel_show(bool bShow) {
         if (g_source_info.source == SOURCE_HDZERO)
             ch = g_setting.scan.channel & 0x7F;
         else if (GOGGLE_VER_1V1) {
-            if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL)
+            if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
                 ch = g_setting.source.analog_channel & 0x7F;
-            else
-                return;
-        } else
-            return;
+            }
+        }
         color = lv_color_make(0xFF, 0xFF, 0xFF);
         sprintf(buf, "CH:%s", channel2str(g_source_info.source == SOURCE_HDZERO, g_setting.source.hdzero_band, ch));
         lv_obj_set_style_bg_opa(g_osd_hdzero.channel[is_fhd], 0, 0);
@@ -657,7 +655,7 @@ void osd_hdzero_update(void) {
     }
 
     bool source_is_hdzero = (g_source_info.source == SOURCE_HDZERO);
-    bool source_is_analog = GOGGLE_VER_1V1 && (g_source_info.source == SOURCE_ANALOG) && (g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL);
+    bool source_is_analog = (g_source_info.source == SOURCE_ANALOG) && (g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL);
     bool showRXOSD = g_setting.osd.is_visible;
 
     osd_rec_show(g_setting.osd.is_visible);
@@ -691,7 +689,11 @@ void osd_hdzero_update(void) {
     else
         lv_obj_add_flag(g_osd_hdzero.vtx_temp[is_fhd], LV_OBJ_FLAG_HIDDEN);
 
-    osd_channel_show(showRXOSD);
+    if (GOGGLE_VER_1V1)
+        osd_channel_show(showRXOSD && (source_is_hdzero || source_is_analog));
+    else
+        osd_channel_show(showRXOSD && source_is_hdzero);
+
     osd_vlq_show(showRXOSD && source_is_hdzero);
 
     if (GOGGLE_VER_1V1)
