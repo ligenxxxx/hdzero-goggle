@@ -376,6 +376,8 @@ void osd_channel_show(bool bShow) {
         else if (GOGGLE_VER_1V1) {
             if (g_source_info.source == SOURCE_ANALOG && g_setting.source.analog_module == SETTING_SOURCES_ANALOG_MODULE_INTERNAL) {
                 ch = g_setting.source.analog_channel & 0x7F;
+            } else {
+                ch = 0;
             }
         }
         color = lv_color_make(0xFF, 0xFF, 0xFF);
