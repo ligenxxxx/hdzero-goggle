@@ -64,6 +64,7 @@ void app_switch_to_menu() {
         // Restore image settings from av module
         Screen_Brightness(g_setting.image.oled);
         Set_Contrast(g_setting.image.contrast);
+        RTC6715_Open(0, 0);
     }
 }
 
@@ -110,6 +111,7 @@ void app_switch_to_hdmi_in() {
         // Restore image settings from av module
         Screen_Brightness(g_setting.image.oled);
         Set_Contrast(g_setting.image.contrast);
+        RTC6715_Open(0, 0);
     }
 
     Source_HDMI_in();
@@ -150,6 +152,7 @@ void app_switch_to_hdzero(bool is_default) {
         // Restore image settings from av module
         Screen_Brightness(g_setting.image.oled);
         Set_Contrast(g_setting.image.contrast);
+        RTC6715_Open(0, 0);
     }
 
     if (is_default) {

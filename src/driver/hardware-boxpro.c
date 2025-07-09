@@ -577,7 +577,6 @@ void Display_UI_init() {
     I2C_Write(ADDR_FPGA, 0x8C, 0x00);
 
     MFPGA_Pattern(0, 0, 0);
-    RTC6715_Open(0);
 
     I2C_Write(ADDR_FPGA, 0x8d, 0x14);
     I2C_Write(ADDR_FPGA, 0x8e, 0x84);
@@ -690,7 +689,7 @@ void Source_AV(source_t mode) // 0=rtc6715; 1=AV_in
     g_hw_stat.av_chid = SOURCE_AV_MODULE == mode ? 0 : 1;
 
     if (SOURCE_AV_MODULE == mode) {
-        RTC6715_Open(1);
+        RTC6715_Open(1, g_setting.record.audio_source == SETTING_RECORD_AUDIO_SOURCE_AV_IN);
         usleep(100 * 1000);
         RTC6715_SetCH(g_setting.source.analog_channel - 1);
     }
