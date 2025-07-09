@@ -1,7 +1,5 @@
 #include "rtc6715.h"
 
-#if HDZBOXPRO
-
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -14,6 +12,7 @@
 #include "gpadc.h"
 #include "i2c.h"
 
+#if HDZBOXPRO
 static uint8_t rtc6715_rssi;
 uint32_t MM_Read(uint8_t addr) {
     uint32_t rdat;
@@ -109,5 +108,11 @@ int RTC6715_GetRssi() {
     // LOGI("rssi voltage: %02f", (float)rssi_adc / 1000);
     return rssi_adc;
 }
+
+#else
+
+void RTC6715_Open(int power_on, int audio_on) {}
+void RTC6715_SetCH(int ch) {}
+int RTC6715_GetRssi() {}
 
 #endif

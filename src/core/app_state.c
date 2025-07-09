@@ -13,6 +13,7 @@
 #include "driver/dm6302.h"
 #include "driver/hardware.h"
 #include "driver/it66121.h"
+#include "driver/rtc6715.h"
 #include "driver/screen.h"
 #include "ui/page_common.h"
 #include "ui/page_imagesettings.h"
