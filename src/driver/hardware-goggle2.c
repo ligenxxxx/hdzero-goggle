@@ -456,10 +456,40 @@ void vclk_phase_set(video_source_t source, uint8_t reg_8d_sel) {
     else
         I2C_Write(ADDR_FPGA, 0x8d, (vclk_phase[source] >> 24) & 0xff);
 
-    if (source == VIDEO_SOURCE_HDZERO_IN_720P60_50 || source == VIDEO_SOURCE_HDZERO_IN_720P90) {
-        I2C_Write(ADDR_FPGA, 0x8e, 0x01);
-    } else {
-        I2C_Write(ADDR_FPGA, 0x8e, (vclk_phase[source] >> 16) & 0xff);
+    switch(source){
+    case VIDEO_SOURCE_MENU_UI:
+        I2C_Write(ADDR_FPGA, 0x8e,0x01);
+        break;
+    case VIDEO_SOURCE_HDZERO_IN_720P60_50:
+        I2C_Write(ADDR_FPGA, 0x8e,0x01);
+        break;
+    case VIDEO_SOURCE_HDZERO_IN_720P90:
+        I2C_Write(ADDR_FPGA, 0x8e,0x20);
+        break;
+    case VIDEO_SOURCE_HDZERO_IN_1080P30:
+        I2C_Write(ADDR_FPGA, 0x8e,0x01);
+        break;
+    case VIDEO_SOURCE_AV_IN:
+        I2C_Write(ADDR_FPGA, 0x8e,0x01);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_1080P50:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_1080P60:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_1080POTHER:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_720P50:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_720P60:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
+    case VIDEO_SOURCE_HDMI_IN_720P100:
+        I2C_Write(ADDR_FPGA, 0x8e,0x00);
+        break;
     }
 
     I2C_Write(ADDR_AL, 0x14, (vclk_phase[source] >> 8) & 0xff);
